@@ -1,0 +1,78 @@
+import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Button,
+  Box,
+  IconButton,
+  Tooltip
+} from '@mui/material';
+import {
+  Dashboard as DashboardIcon,
+  List as ListIcon,
+  Add as AddIcon,
+  Assessment as StatsIcon
+} from '@mui/icons-material';
+
+const Navbar = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const menuItems = [
+    { label: 'Dashboard', path: '/', icon: <DashboardIcon /> },
+    { label: 'Satışlar', path: '/sales', icon: <ListIcon /> },
+    { label: 'Yeni Satış', path: '/sales/new', icon: <AddIcon /> },
+  ];
+
+  const isActive = (path) => {
+    if (path === '/') {
+      return location.pathname === '/';
+    }
+    return location.pathname.startsWith(path);
+  };
+
+  return (
+    <AppBar position="static" elevation={2}>
+      <Toolbar>
+        <Typography
+          variant="h6"
+          component="div"
+          sx={{ 
+            flexGrow: 1, 
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1
+          }}
+        >
+          <StatsIcon />
+          Satış Takip Sistemi
+        </Typography>
+        
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          {menuItems.map((item) => (
+            <Tooltip key={item.path} title={item.label}>
+              <Button
+                color="inherit"
+                onClick={() => navigate(item.path)}
+                startIcon={item.icon}
+                sx={{
+                  backgroundColor: isActive(item.path) ? 'rgba(255,255,255,0.1)' : 'transparent',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255,255,255,0.1)',
+                  },
+                }}
+              >
+                {item.label}
+              </Button>
+            </Tooltip>
+          ))}
+        </Box>
+      </Toolbar>
+    </AppBar>
+  );
+};
+
+export default Navbar;

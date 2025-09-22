@@ -1,0 +1,285 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Container,
+  Grid,
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  CircularProgress,
+  Alert,
+  Chip,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
+  Button
+} from '@mui/material';
+import {
+  TrendingUp as TrendingUpIcon,
+  ShoppingCart as ShoppingCartIcon,
+  AttachMoney as MoneyIcon,
+  LocationOn as LocationIcon,
+  PictureAsPdf as PdfIcon
+} from '@mui/icons-material';
+import { salesAPI } from '../services/api';
+import { exportSalesToPDF } from '../utils/pdfExport';
+import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
+
+const Dashboard = () => {
+  const [stats, setStats] = useState(null);
+  const [recentSales, setRecentSales] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // İstatistikleri ve son satışları paralel olarak getir
+      const [statsResponse, salesResponse] = await Promise.all([
+        salesAPI.getStats(),
+        salesAPI.getAll({ limit: 5, sortBy: 'saleDate', sortOrder: 'desc' })
+      ]);
+
+      setStats(statsResponse.data);
+      setRecentSales(salesResponse.data);
+    } catch (err) {
+      console.error('Dashboard veri hatası:', err);
+      setError(err.response?.data?.message || 'Veriler yüklenirken hata oluştu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      exportSalesToPDF(recentSales, {});
+    } catch (err) {
+      console.error('PDF export hatası:', err);
+      setError('PDF oluşturulurken hata oluştu');
+    }
+  };
+
+  const StatCard = ({ title, value, icon, color = 'primary', subtitle }) => (
+    <Card>
+      <CardContent>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <Box
+            sx={{
+              backgroundColor: `${color}.light`,
+              color: `${color}.contrastText`,
+              borderRadius: 2,
+              p: 1,
+              mr: 2
+            }}
+          >
+            {icon}
+          </Box>
+          <Typography variant="h6" component="div">
+            {title}
+          </Typography>
+        </Box>
+        <Typography variant="h4" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
+          {value}
+        </Typography>
+        {subtitle && (
+          <Typography variant="body2" color="text.secondary">
+            {subtitle}
+          </Typography>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('tr-TR', {
+      style: 'currency',
+      currency: 'TRY'
+    }).format(amount);
+  };
+
+  const formatDate = (date) => {
+    return format(new Date(date), 'dd MMM yyyy', { locale: tr });
+  };
+
+  if (loading) {
+    return (
+      <Container maxWidth="lg">
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+          <CircularProgress />
+        </Box>
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container maxWidth="lg">
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {error}
+        </Alert>
+      </Container>
+    );
+  }
+
+  return (
+    <Container maxWidth="lg">
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+        <Typography variant="h4" component="h1">
+          Dashboard
+        </Typography>
+        <Button
+          variant="outlined"
+          startIcon={<PdfIcon />}
+          onClick={handleExportPDF}
+          color="error"
+        >
+          PDF İndir
+        </Button>
+      </Box>
+
+      {/* İstatistik Kartları */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Toplam Satış"
+            value={formatCurrency(stats?.overview?.totalSales || 0)}
+            icon={<MoneyIcon />}
+            color="success"
+            subtitle={`${stats?.overview?.count || 0} işlem`}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Toplam Miktar"
+            value={stats?.overview?.totalQuantity || 0}
+            icon={<ShoppingCartIcon />}
+            color="info"
+            subtitle="adet ürün"
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Ortalama Fiyat"
+            value={formatCurrency(stats?.overview?.averagePrice || 0)}
+            icon={<TrendingUpIcon />}
+            color="warning"
+            subtitle="işlem başına"
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <StatCard
+            title="Toplam İşlem"
+            value={stats?.overview?.count || 0}
+            icon={<TrendingUpIcon />}
+            color="primary"
+            subtitle="satış kaydı"
+          />
+        </Grid>
+      </Grid>
+
+      <Grid container spacing={3}>
+        {/* Son Satışlar */}
+        <Grid item xs={12} md={8}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" component="h2" gutterBottom>
+                Son Satışlar
+              </Typography>
+              {recentSales.length > 0 ? (
+                <List>
+                  {recentSales.map((sale, index) => (
+                    <React.Fragment key={sale._id}>
+                      <ListItem>
+                        <ListItemText
+                          primary={
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Typography variant="subtitle1">
+                                {sale.product.name}
+                              </Typography>
+                              <Chip
+                                label={formatCurrency(sale.price.amount)}
+                                color="success"
+                                size="small"
+                              />
+                            </Box>
+                          }
+                          secondary={
+                            <Box>
+                              <Typography variant="body2" color="text.secondary">
+                                Satıcı: {sale.seller.name} → Alıcı: {sale.buyer.name}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {sale.address.city} • {formatDate(sale.saleDate)}
+                              </Typography>
+                            </Box>
+                          }
+                        />
+                      </ListItem>
+                      {index < recentSales.length - 1 && <Divider />}
+                    </React.Fragment>
+                  ))}
+                </List>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  Henüz satış kaydı bulunmuyor.
+                </Typography>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* En Çok Satış Yapılan Şehirler */}
+        <Grid item xs={12} md={4}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" component="h2" gutterBottom>
+                En Çok Satış Yapılan Şehirler
+              </Typography>
+              {stats?.topCities && stats.topCities.length > 0 ? (
+                <List>
+                  {stats.topCities.slice(0, 5).map((city, index) => (
+                    <React.Fragment key={city._id}>
+                      <ListItem>
+                        <ListItemText
+                          primary={
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                <LocationIcon sx={{ mr: 1, fontSize: 16 }} />
+                                {city._id || 'Belirtilmemiş'}
+                              </Box>
+                              <Chip
+                                label={city.count}
+                                color="primary"
+                                size="small"
+                              />
+                            </Box>
+                          }
+                          secondary={formatCurrency(city.totalSales)}
+                        />
+                      </ListItem>
+                      {index < Math.min(stats.topCities.length, 5) - 1 && <Divider />}
+                    </React.Fragment>
+                  ))}
+                </List>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  Şehir verisi bulunmuyor.
+                </Typography>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+    </Container>
+  );
+};
+
+export default Dashboard;

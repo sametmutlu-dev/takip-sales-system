@@ -1,0 +1,80 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Mobil optimizasyonları */
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* Touch optimizasyonları */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Metin seçimi için özel durumlar */
+input, textarea, [contenteditable] {
+  -webkit-user-select: text;
+  -khtml-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* Mobil cihazlar için genel optimizasyonlar */
+* {
+  box-sizing: border-box;
+}
+
+/* Küçük ekranlar için font boyutu ayarlamaları */
+@media (max-width: 600px) {
+  html {
+    font-size: 14px;
+  }
+  
+  body {
+    font-size: 14px;
+    line-height: 1.4;
+  }
+}
+
+/* Çok küçük ekranlar için */
+@media (max-width: 400px) {
+  html {
+    font-size: 13px;
+  }
+  
+  body {
+    font-size: 13px;
+  }
+}
+
+/* Touch cihazlar için minimum dokunma alanı */
+button, a, [role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Scroll optimizasyonları */
+html {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobil cihazlarda görüntü optimizasyonu */
+img {
+  max-width: 100%;
+  height: auto;
+}

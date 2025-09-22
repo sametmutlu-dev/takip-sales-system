@@ -1,0 +1,623 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Container,
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  TextField,
+  Button,
+  Grid,
+  Alert,
+  CircularProgress,
+  MenuItem,
+  Divider,
+  Stepper,
+  Step,
+  StepLabel,
+  useMediaQuery,
+  useTheme
+} from '@mui/material';
+import {
+  Save as SaveIcon,
+  ArrowBack as ArrowBackIcon,
+  Person as PersonIcon,
+  LocationOn as LocationIcon,
+  ShoppingCart as ShoppingCartIcon,
+  AttachMoney as MoneyIcon
+} from '@mui/icons-material';
+import { useNavigate, useParams } from 'react-router-dom';
+import { salesAPI } from '../services/api';
+
+const SalesForm = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const isEdit = Boolean(id);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  // const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
+  const [activeStep, setActiveStep] = useState(0);
+
+  const [formData, setFormData] = useState({
+    seller: {
+      name: '',
+      phone: '',
+      email: ''
+    },
+    buyer: {
+      name: '',
+      phone: '',
+      email: ''
+    },
+    address: {
+      street: '',
+      city: '',
+      district: '',
+      postalCode: '',
+      country: 'Türkiye'
+    },
+    product: {
+      name: 'Petek',
+      description: '',
+      category: '',
+      quantity: 1,
+      unit: 'adet'
+    },
+    price: {
+      amount: 0,
+      currency: 'TRY',
+      taxRate: 0
+    },
+    saleDate: new Date().toISOString().split('T')[0],
+    status: 'completed',
+    deliveryType: 'kargo',
+    notes: ''
+  });
+
+  const steps = [
+    'Satıcı Bilgileri',
+    'Alıcı Bilgileri',
+    'Adres Bilgileri',
+    'Ürün Bilgileri',
+    'Fiyat ve Teslimat',
+    'Özet'
+  ];
+
+  useEffect(() => {
+    if (isEdit) {
+      fetchSaleData();
+    }
+  }, [id, isEdit]);
+
+  const fetchSaleData = async () => {
+    try {
+      setLoading(true);
+      const response = await salesAPI.getById(id);
+      setFormData(response.data);
+    } catch (err) {
+      console.error('Satış verisi hatası:', err);
+      setError(err.response?.data?.message || 'Satış verisi yüklenirken hata oluştu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (section, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [field]: value
+      }
+    }));
+  };
+
+  const handleDirectInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleNext = () => {
+    setActiveStep(prev => prev + 1);
+  };
+
+  const handleBack = () => {
+    setActiveStep(prev => prev - 1);
+  };
+
+  const handleSubmit = async () => {
+    console.log("🚀 Form submit başladı");
+    console.log("📝 Form data:", formData);
+    try {
+      setLoading(true);
+      setError(null);
+
+      if (isEdit) {
+        await salesAPI.update(id, formData);
+        setSuccess('Satış başarıyla güncellendi!');
+      } else {
+        await salesAPI.create(formData);
+        setSuccess('Satış başarıyla oluşturuldu!');
+      }
+
+      setTimeout(() => {
+        navigate('/sales');
+      }, 2000);
+    } catch (err) {
+      console.error('Form gönderme hatası:', err);
+      setError(err.response?.data?.message || 'Form gönderilirken hata oluştu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderStepContent = (step) => {
+    switch (step) {
+      case 0: // Satıcı Bilgileri
+        return (
+          <Grid container spacing={isMobile ? 2 : 3}>
+            <Grid item xs={12}>
+              <Typography variant={isMobile ? "h6" : "h6"} gutterBottom>
+                <PersonIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                Satıcı Bilgileri
+              </Typography>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Satıcı *"
+                select
+                value={formData.seller.name}
+                onChange={(e) => handleInputChange('seller', 'name', e.target.value)}
+                required
+                size={isMobile ? "small" : "medium"}
+              >
+                <MenuItem value="Özgür Cevizci">Özgür Cevizci</MenuItem>
+                <MenuItem value="Mustafa Demirtaş">Mustafa Demirtaş</MenuItem>
+                <MenuItem value="diğer">Diğer</MenuItem>
+              </TextField>
+            </Grid>
+            {formData.seller.name === 'diğer' && (
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Satıcı Adı *"
+                  value={formData.seller.name}
+                  onChange={(e) => handleInputChange('seller', 'name', e.target.value)}
+                  required
+                  placeholder="Satıcı adını yazın"
+                  size={isMobile ? "small" : "medium"}
+                />
+              </Grid>
+            )}
+          </Grid>
+        );
+
+      case 1: // Alıcı Bilgileri
+        return (
+          <Grid container spacing={isMobile ? 2 : 3}>
+            <Grid item xs={12}>
+              <Typography variant={isMobile ? "h6" : "h6"} gutterBottom>
+                <PersonIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                Alıcı Bilgileri
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Alıcı Adı *"
+                value={formData.buyer.name}
+                onChange={(e) => handleInputChange('buyer', 'name', e.target.value)}
+                required
+                size={isMobile ? "small" : "medium"}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Telefon"
+                value={formData.buyer.phone}
+                onChange={(e) => handleInputChange('buyer', 'phone', e.target.value)}
+                size={isMobile ? "small" : "medium"}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Email"
+                type="email"
+                value={formData.buyer.email}
+                onChange={(e) => handleInputChange('buyer', 'email', e.target.value)}
+                size={isMobile ? "small" : "medium"}
+              />
+            </Grid>
+          </Grid>
+        );
+
+      case 2: // Adres Bilgileri
+        return (
+          <Grid container spacing={isMobile ? 2 : 3}>
+            <Grid item xs={12}>
+              <Typography variant={isMobile ? "h6" : "h6"} gutterBottom>
+                <LocationIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                Adres Bilgileri
+              </Typography>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Açık Adres *"
+                value={formData.address.street}
+                onChange={(e) => handleInputChange('address', 'street', e.target.value)}
+                required
+                multiline
+                rows={isMobile ? 2 : 3}
+                placeholder="Mahalle, sokak, bina no, daire no vb. detaylı adres bilgisi"
+                size={isMobile ? "small" : "medium"}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Şehir *"
+                value={formData.address.city}
+                onChange={(e) => handleInputChange('address', 'city', e.target.value)}
+                required
+                size={isMobile ? "small" : "medium"}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="İlçe"
+                value={formData.address.district}
+                onChange={(e) => handleInputChange('address', 'district', e.target.value)}
+                size={isMobile ? "small" : "medium"}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Posta Kodu"
+                value={formData.address.postalCode}
+                onChange={(e) => handleInputChange('address', 'postalCode', e.target.value)}
+                size={isMobile ? "small" : "medium"}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Ülke"
+                value={formData.address.country}
+                onChange={(e) => handleInputChange('address', 'country', e.target.value)}
+                size={isMobile ? "small" : "medium"}
+              />
+            </Grid>
+          </Grid>
+        );
+
+      case 3: // Ürün Bilgileri
+        return (
+          <Grid container spacing={isMobile ? 2 : 3}>
+            <Grid item xs={12}>
+              <Typography variant={isMobile ? "h6" : "h6"} gutterBottom>
+                <ShoppingCartIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                Ürün Bilgileri
+              </Typography>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Ürün *"
+                select
+                value={formData.product.name}
+                onChange={(e) => handleInputChange('product', 'name', e.target.value)}
+                required
+                size={isMobile ? "small" : "medium"}
+              >
+                <MenuItem value="Petek">Petek</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Ürün Açıklaması"
+                value={formData.product.description}
+                onChange={(e) => handleInputChange('product', 'description', e.target.value)}
+                multiline
+                rows={isMobile ? 2 : 3}
+                placeholder="Ürün hakkında ek bilgiler"
+                size={isMobile ? "small" : "medium"}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Miktar *"
+                type="number"
+                value={formData.product.quantity}
+                onChange={(e) => handleInputChange('product', 'quantity', parseInt(e.target.value) || 1)}
+                required
+                inputProps={{ min: 1 }}
+                helperText="Birim: adet"
+                size={isMobile ? "small" : "medium"}
+              />
+            </Grid>
+          </Grid>
+        );
+
+      case 4: // Fiyat ve Teslimat
+        return (
+          <Grid container spacing={isMobile ? 2 : 3}>
+            <Grid item xs={12}>
+              <Typography variant={isMobile ? "h6" : "h6"} gutterBottom>
+                <MoneyIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                Fiyat ve Teslimat Bilgileri
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Fiyat *"
+                type="number"
+                value={formData.price.amount}
+                onChange={(e) => handleInputChange('price', 'amount', parseFloat(e.target.value) || 0)}
+                required
+                inputProps={{ min: 0, step: 0.01 }}
+                InputProps={{
+                  endAdornment: <Typography sx={{ ml: 1 }}>₺</Typography>
+                }}
+                size={isMobile ? "small" : "medium"}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Para Birimi"
+                select
+                value={formData.price.currency}
+                onChange={(e) => handleInputChange('price', 'currency', e.target.value)}
+                size={isMobile ? "small" : "medium"}
+              >
+                <MenuItem value="TRY">TRY - Türk Lirası</MenuItem>
+                <MenuItem value="USD">USD - Amerikan Doları</MenuItem>
+                <MenuItem value="EUR">EUR - Euro</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Satış Tarihi *"
+                type="date"
+                value={formData.saleDate}
+                onChange={(e) => handleDirectInputChange('saleDate', e.target.value)}
+                required
+                InputLabelProps={{ shrink: true }}
+                size={isMobile ? "small" : "medium"}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Durum"
+                select
+                value={formData.status}
+                onChange={(e) => handleDirectInputChange('status', e.target.value)}
+                size={isMobile ? "small" : "medium"}
+              >
+                <MenuItem value="completed">Tamamlandı</MenuItem>
+                <MenuItem value="pending">Beklemede</MenuItem>
+                <MenuItem value="shipped">Kargoda</MenuItem>
+                <MenuItem value="cancelled">İptal</MenuItem>
+                <MenuItem value="refunded">İade</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Gönderi Tipi"
+                select
+                value={formData.deliveryType}
+                onChange={(e) => handleDirectInputChange('deliveryType', e.target.value)}
+                size={isMobile ? "small" : "medium"}
+              >
+                <MenuItem value="kargo">Kargo</MenuItem>
+                <MenuItem value="elden">Elden Teslim</MenuItem>
+                <MenuItem value="bayi">Bayi</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Notlar"
+                value={formData.notes}
+                onChange={(e) => handleDirectInputChange('notes', e.target.value)}
+                multiline
+                rows={isMobile ? 2 : 3}
+                placeholder="Ek notlar ve açıklamalar"
+                size={isMobile ? "small" : "medium"}
+              />
+            </Grid>
+          </Grid>
+        );
+
+      case 5: // Özet
+        return (
+          <Grid container spacing={isMobile ? 2 : 3}>
+            <Grid item xs={12}>
+              <Typography variant={isMobile ? "h6" : "h6"} gutterBottom>
+                Satış Özeti
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Card variant="outlined">
+                <CardContent sx={{ p: isMobile ? 2 : 3 }}>
+                  <Typography variant="h6" gutterBottom>Satıcı</Typography>
+                  <Typography><strong>Ad:</strong> {formData.seller.name}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Card variant="outlined">
+                <CardContent sx={{ p: isMobile ? 2 : 3 }}>
+                  <Typography variant="h6" gutterBottom>Alıcı</Typography>
+                  <Typography><strong>Ad:</strong> {formData.buyer.name}</Typography>
+                  <Typography><strong>Telefon:</strong> {formData.buyer.phone || 'Belirtilmemiş'}</Typography>
+                  <Typography><strong>Email:</strong> {formData.buyer.email || 'Belirtilmemiş'}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12}>
+              <Card variant="outlined">
+                <CardContent sx={{ p: isMobile ? 2 : 3 }}>
+                  <Typography variant="h6" gutterBottom>Adres</Typography>
+                  <Typography>{formData.address.street}</Typography>
+                  <Typography>{formData.address.district && `${formData.address.district}, `}{formData.address.city}</Typography>
+                  <Typography>{formData.address.postalCode && `${formData.address.postalCode} `}{formData.address.country}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Card variant="outlined">
+                <CardContent sx={{ p: isMobile ? 2 : 3 }}>
+                  <Typography variant="h6" gutterBottom>Ürün</Typography>
+                  <Typography><strong>Ad:</strong> {formData.product.name}</Typography>
+                  <Typography><strong>Miktar:</strong> {formData.product.quantity} adet</Typography>
+                  {formData.product.description && (
+                    <Typography><strong>Açıklama:</strong> {formData.product.description}</Typography>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Card variant="outlined">
+                <CardContent sx={{ p: isMobile ? 2 : 3 }}>
+                  <Typography variant="h6" gutterBottom>Fiyat ve Teslimat</Typography>
+                  <Typography><strong>Fiyat:</strong> {formData.price.amount} {formData.price.currency}</Typography>
+                  <Typography><strong>Tarih:</strong> {new Date(formData.saleDate).toLocaleDateString('tr-TR')}</Typography>
+                  <Typography><strong>Durum:</strong> {formData.status}</Typography>
+                  <Typography><strong>Gönderi Tipi:</strong> {formData.deliveryType}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  if (loading && isEdit) {
+    return (
+      <Container maxWidth="lg" sx={{ px: isMobile ? 1 : 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+          <CircularProgress />
+        </Box>
+      </Container>
+    );
+  }
+
+  return (
+    <Container maxWidth="lg" sx={{ px: isMobile ? 1 : 3 }}>
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        mb: 3,
+        flexDirection: isMobile ? 'column' : 'row',
+        gap: isMobile ? 2 : 0
+      }}>
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate('/sales')}
+          sx={{ mr: isMobile ? 0 : 2 }}
+          fullWidth={isMobile}
+        >
+          Geri
+        </Button>
+        <Typography variant={isMobile ? "h5" : "h4"} component="h1">
+          {isEdit ? 'Satış Düzenle' : 'Yeni Satış'}
+        </Typography>
+      </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+
+      {success && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          {success}
+        </Alert>
+      )}
+
+      <Card>
+        <CardContent sx={{ p: isMobile ? 2 : 3 }}>
+          <Stepper 
+            activeStep={activeStep} 
+            sx={{ mb: 4 }}
+            orientation={isMobile ? "vertical" : "horizontal"}
+          >
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel>{label}</StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+
+          <Box sx={{ mb: 4 }}>
+            {renderStepContent(activeStep)}
+          </Box>
+
+          <Divider sx={{ mb: 3 }} />
+
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between',
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: isMobile ? 2 : 0
+          }}>
+            <Button
+              disabled={activeStep === 0}
+              onClick={handleBack}
+              fullWidth={isMobile}
+            >
+              Geri
+            </Button>
+
+            <Box sx={{ width: isMobile ? '100%' : 'auto' }}>
+              {activeStep === steps.length - 1 ? (
+                <Button
+                  variant="contained"
+                  startIcon={<SaveIcon />}
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  fullWidth={isMobile}
+                >
+                  {loading ? <CircularProgress size={20} /> : (isEdit ? 'Güncelle' : 'Kaydet')}
+                </Button>
+              ) : (
+                <Button
+                  variant="contained"
+                  onClick={handleNext}
+                  fullWidth={isMobile}
+                >
+                  İleri
+                </Button>
+              )}
+            </Box>
+          </Box>
+        </CardContent>
+      </Card>
+    </Container>
+  );
+};
+
+export default SalesForm;

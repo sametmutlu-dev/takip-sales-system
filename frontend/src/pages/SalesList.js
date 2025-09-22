@@ -1,0 +1,633 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Container,
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  TextField,
+  Button,
+  Grid,
+  Chip,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Alert,
+  
+  MenuItem,
+  InputAdornment,
+  useMediaQuery,
+  useTheme,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper
+} from '@mui/material';
+import {
+  Search as SearchIcon,
+  FilterList as FilterIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon,
+  Refresh as RefreshIcon,
+  PictureAsPdf as PdfIcon
+} from '@mui/icons-material';
+import { DataGrid } from '@mui/x-data-grid';
+import { useNavigate } from 'react-router-dom';
+import { salesAPI } from '../services/api';
+import { exportSalesToPDF, exportSingleSaleToPDF } from '../utils/pdfExport';
+import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
+
+const SalesList = () => {
+  const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  // const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  
+  const [sales, setSales] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState({
+    page: 0,
+    pageSize: 10,
+    total: 0
+  });
+
+  // Filtreleme state'leri
+  const [filters, setFilters] = useState({
+    seller: '',
+    buyer: '',
+    city: '',
+    category: '',
+    status: '',
+    startDate: '',
+    endDate: ''
+  });
+
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedSale, setSelectedSale] = useState(null);
+
+  useEffect(() => {
+    fetchSales();
+  }, [pagination.page, pagination.pageSize]);
+
+  const fetchSales = async (customFilters = {}) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const params = {
+        page: pagination.page + 1,
+        limit: pagination.pageSize,
+        ...filters,
+        ...customFilters
+      };
+
+      // Boş değerları temizle
+      Object.keys(params).forEach(key => {
+        if (params[key] === '') {
+          delete params[key];
+        }
+      });
+
+      const response = await salesAPI.getAll(params);
+      setSales(response.data);
+      setPagination(prev => ({
+        ...prev,
+        total: response.pagination.totalItems
+      }));
+    } catch (err) {
+      console.error('Satış listesi hatası:', err);
+      setError(err.response?.data?.message || 'Satışlar yüklenirken hata oluştu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFilterChange = (field, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleApplyFilters = () => {
+    setPagination(prev => ({ ...prev, page: 0 }));
+    fetchSales();
+    setFilterDialogOpen(false);
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      seller: '',
+      buyer: '',
+      city: '',
+      category: '',
+      status: '',
+      startDate: '',
+      endDate: ''
+    });
+    setPagination(prev => ({ ...prev, page: 0 }));
+    fetchSales({});
+    setFilterDialogOpen(false);
+  };
+
+  const handleDelete = async () => {
+    try {
+      await salesAPI.delete(selectedSale._id);
+      setDeleteDialogOpen(false);
+      setSelectedSale(null);
+      fetchSales();
+    } catch (err) {
+      console.error('Silme hatası:', err);
+      setError(err.response?.data?.message || 'Satış silinirken hata oluştu');
+    }
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      exportSalesToPDF(sales, filters);
+    } catch (err) {
+      console.error('PDF export hatası:', err);
+      setError('PDF oluşturulurken hata oluştu');
+    }
+  };
+
+  const handleExportSinglePDF = async (sale) => {
+    try {
+      exportSingleSaleToPDF(sale);
+    } catch (err) {
+      console.error('PDF export hatası:', err);
+      setError('PDF oluşturulurken hata oluştu');
+    }
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('tr-TR', {
+      style: 'currency',
+      currency: 'TRY'
+    }).format(amount);
+  };
+
+  const formatDate = (date) => {
+    return format(new Date(date), 'dd/MM/yyyy', { locale: tr });
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'completed': return 'success';
+      case 'pending': return 'warning';
+      case 'shipped': return 'info';
+      case 'cancelled': return 'error';
+      case 'refunded': return 'default';
+      default: return 'default';
+    }
+  };
+
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'completed': return 'Tamamlandı';
+      case 'pending': return 'Beklemede';
+      case 'shipped': return 'Kargoda';
+      case 'cancelled': return 'İptal';
+      case 'refunded': return 'İade';
+      default: return status;
+    }
+  };
+
+  const getDeliveryTypeText = (deliveryType) => {
+    switch (deliveryType) {
+      case 'kargo': return 'Kargo';
+      case 'elden': return 'Elden Teslim';
+      case 'bayi': return 'Bayi';
+      default: return deliveryType;
+    }
+  };
+
+  const columns = [
+    {
+      field: 'product.name',
+      headerName: 'Ürün',
+      width: 120,
+      renderCell: (params) => (
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+            {params.row.product.name}
+          </Typography>
+        </Box>
+      )
+    },
+    {
+      field: 'seller.name',
+      headerName: 'Satıcı',
+      width: 120,
+      renderCell: (params) => (
+        <Typography variant="body2">{params.row.seller.name}</Typography>
+      )
+    },
+    {
+      field: 'buyer.name',
+      headerName: 'Alıcı',
+      width: 120,
+      renderCell: (params) => (
+        <Box>
+          <Typography variant="body2">{params.row.buyer.name}</Typography>
+          <Typography variant="caption" color="text.secondary">
+            {params.row.buyer.phone}
+          </Typography>
+        </Box>
+      )
+    },
+    {
+      field: 'address.city',
+      headerName: 'Şehir',
+      width: 100
+    },
+    {
+      field: 'price.amount',
+      headerName: 'Fiyat',
+      width: 100,
+      renderCell: (params) => (
+        <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+          {formatCurrency(params.row.price.amount)}
+        </Typography>
+      )
+    },
+    {
+      field: 'saleDate',
+      headerName: 'Tarih',
+      width: 100,
+      renderCell: (params) => formatDate(params.row.saleDate)
+    },
+    {
+      field: 'status',
+      headerName: 'Durum',
+      width: 100,
+      renderCell: (params) => (
+        <Chip
+          label={getStatusText(params.row.status)}
+          color={getStatusColor(params.row.status)}
+          size="small"
+        />
+      )
+    },
+    {
+      field: 'deliveryType',
+      headerName: 'Gönderi',
+      width: 100,
+      renderCell: (params) => (
+        <Typography variant="body2" color="text.secondary">
+          {getDeliveryTypeText(params.row.deliveryType)}
+        </Typography>
+      )
+    },
+    {
+      field: 'actions',
+      headerName: 'İşlemler',
+      width: 150,
+      sortable: false,
+      renderCell: (params) => (
+        <Box>
+          <IconButton
+            size="small"
+            onClick={() => handleExportSinglePDF(params.row)}
+            color="error"
+            title="PDF İndir"
+          >
+            <PdfIcon />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={() => navigate(`/sales/edit/${params.row._id}`)}
+            color="primary"
+            title="Düzenle"
+          >
+            <EditIcon />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={() => {
+              setSelectedSale(params.row);
+              setDeleteDialogOpen(true);
+            }}
+            color="error"
+            title="Sil"
+          >
+            <DeleteIcon />
+          </IconButton>
+        </Box>
+      )
+    }
+  ];
+
+  // Mobil için basit tablo render fonksiyonu
+  const renderMobileTable = () => (
+    <TableContainer component={Paper} sx={{ maxHeight: 600 }}>
+      <Table stickyHeader size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Ürün</TableCell>
+            <TableCell>Alıcı</TableCell>
+            <TableCell>Fiyat</TableCell>
+            <TableCell>İşlemler</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {sales.map((sale) => (
+            <TableRow key={sale._id}>
+              <TableCell>
+                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                  {sale.product.name}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {sale.seller.name}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                <Typography variant="body2">{sale.buyer.name}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {sale.address.city}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                  {formatCurrency(sale.price.amount)}
+                </Typography>
+                <Chip
+                  label={getStatusText(sale.status)}
+                  color={getStatusColor(sale.status)}
+                  size="small"
+                  sx={{ mt: 0.5 }}
+                />
+              </TableCell>
+              <TableCell>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleExportSinglePDF(sale)}
+                    color="error"
+                    title="PDF İndir"
+                  >
+                    <PdfIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={() => navigate(`/sales/edit/${sale._id}`)}
+                    color="primary"
+                    title="Düzenle"
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setSelectedSale(sale);
+                      setDeleteDialogOpen(true);
+                    }}
+                    color="error"
+                    title="Sil"
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+
+  if (error) {
+    return (
+      <Container maxWidth="lg" sx={{ px: isMobile ? 1 : 3 }}>
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {error}
+        </Alert>
+      </Container>
+    );
+  }
+
+  return (
+    <Container maxWidth="lg" sx={{ px: isMobile ? 1 : 3 }}>
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: isMobile ? 'flex-start' : 'center', 
+        mb: 3,
+        flexDirection: isMobile ? 'column' : 'row',
+        gap: isMobile ? 2 : 0
+      }}>
+        <Typography variant={isMobile ? "h5" : "h4"} component="h1">
+          Satış Listesi
+        </Typography>
+        <Box sx={{ 
+          display: 'flex', 
+          gap: 1,
+          flexDirection: isMobile ? 'column' : 'row',
+          width: isMobile ? '100%' : 'auto'
+        }}>
+          <Button
+            variant="outlined"
+            startIcon={<PdfIcon />}
+            onClick={handleExportPDF}
+            color="error"
+            size={isMobile ? "small" : "medium"}
+            fullWidth={isMobile}
+          >
+            PDF İndir
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => navigate('/sales/new')}
+            size={isMobile ? "small" : "medium"}
+            fullWidth={isMobile}
+          >
+            Yeni Satış
+          </Button>
+        </Box>
+      </Box>
+
+      <Card>
+        <CardContent sx={{ p: isMobile ? 2 : 3 }}>
+          {/* Filtreleme Alanı */}
+          <Box sx={{ 
+            mb: 3, 
+            display: 'flex', 
+            gap: 2, 
+            alignItems: 'center', 
+            flexWrap: 'wrap',
+            flexDirection: isMobile ? 'column' : 'row'
+          }}>
+            <TextField
+              size="small"
+              placeholder="Satıcı ara..."
+              value={filters.seller}
+              onChange={(e) => handleFilterChange('seller', e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ minWidth: isMobile ? '100%' : 200 }}
+              fullWidth={isMobile}
+            />
+            <TextField
+              size="small"
+              placeholder="Alıcı ara..."
+              value={filters.buyer}
+              onChange={(e) => handleFilterChange('buyer', e.target.value)}
+              sx={{ minWidth: isMobile ? '100%' : 200 }}
+              fullWidth={isMobile}
+            />
+            <TextField
+              size="small"
+              placeholder="Şehir ara..."
+              value={filters.city}
+              onChange={(e) => handleFilterChange('city', e.target.value)}
+              sx={{ minWidth: isMobile ? '100%' : 150 }}
+              fullWidth={isMobile}
+            />
+            <Box sx={{ 
+              display: 'flex', 
+              gap: 1,
+              width: isMobile ? '100%' : 'auto'
+            }}>
+              <Button
+                variant="outlined"
+                startIcon={<FilterIcon />}
+                onClick={() => setFilterDialogOpen(true)}
+                size="small"
+                fullWidth={isMobile}
+              >
+                Filtreler
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<RefreshIcon />}
+                onClick={() => fetchSales()}
+                size="small"
+                fullWidth={isMobile}
+              >
+                Yenile
+              </Button>
+            </Box>
+          </Box>
+
+          {/* Data Grid / Mobile Table */}
+          {isMobile ? (
+            renderMobileTable()
+          ) : (
+            <Box sx={{ height: 600, width: '100%' }}>
+              <DataGrid
+                rows={sales}
+                columns={columns}
+                loading={loading}
+                paginationMode="server"
+                rowCount={pagination.total}
+                page={pagination.page}
+                pageSize={pagination.pageSize}
+                onPageChange={(newPage) => setPagination(prev => ({ ...prev, page: newPage }))}
+                onPageSizeChange={(newPageSize) => setPagination(prev => ({ ...prev, pageSize: newPageSize }))}
+                rowsPerPageOptions={[5, 10, 25, 50]}
+                disableSelectionOnClick
+                getRowId={(row) => row._id}
+              />
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Filtre Dialog */}
+      <Dialog open={filterDialogOpen} onClose={() => setFilterDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Gelişmiş Filtreler</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Kategori"
+                value={filters.category}
+                onChange={(e) => handleFilterChange('category', e.target.value)}
+                size="small"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                select
+                label="Durum"
+                value={filters.status}
+                onChange={(e) => handleFilterChange('status', e.target.value)}
+                size="small"
+              >
+                <MenuItem value="">Tümü</MenuItem>
+                <MenuItem value="completed">Tamamlandı</MenuItem>
+                <MenuItem value="pending">Beklemede</MenuItem>
+                <MenuItem value="shipped">Kargoda</MenuItem>
+                <MenuItem value="cancelled">İptal</MenuItem>
+                <MenuItem value="refunded">İade</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                type="date"
+                label="Başlangıç Tarihi"
+                value={filters.startDate}
+                onChange={(e) => handleFilterChange('startDate', e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                size="small"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                type="date"
+                label="Bitiş Tarihi"
+                value={filters.endDate}
+                onChange={(e) => handleFilterChange('endDate', e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                size="small"
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClearFilters}>Temizle</Button>
+          <Button onClick={() => setFilterDialogOpen(false)}>İptal</Button>
+          <Button onClick={handleApplyFilters} variant="contained">Uygula</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Silme Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>Satışı Sil</DialogTitle>
+        <DialogContent>
+          <Typography>
+            "{selectedSale?.product?.name}" satışını silmek istediğinizden emin misiniz?
+            Bu işlem geri alınamaz.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>İptal</Button>
+          <Button onClick={handleDelete} color="error" variant="contained">
+            Sil
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Container>
+  );
+};
+
+export default SalesList;
