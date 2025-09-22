@@ -5,17 +5,17 @@ const mongoose = require('mongoose');
 const PORT = process.env.PORT || 5000;
 
 // MongoDB bağlantısı
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => {
-  console.log('✅ MongoDB bağlantısı başarılı');
-})
-.catch((error) => {
-  console.error('❌ MongoDB bağlantı hatası:', error);
-  process.exit(1);
-});
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('✅ MongoDB bağlantısı başarılı');
+  } catch (error) {
+    console.error('❌ MongoDB bağlantı hatası:', error);
+    process.exit(1);
+  }
+};
+
+connectDB();
 
 // Server başlatma
 app.listen(PORT, () => {
