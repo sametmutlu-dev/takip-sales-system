@@ -39,7 +39,7 @@ app.use(express.urlencoded({ extended: true }));
 // Security middleware - Deploy için geçici devre dışı
 // app.use(ipWhitelist);
 // app.use(domainCheck);
-app.use(apiKeyAuth);
+// app.use(apiKeyAuth);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
