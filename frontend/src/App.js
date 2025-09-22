@@ -100,6 +100,46 @@ const theme = createTheme({
 
 
 function App() {
+  const [ipAccess, setIpAccess] = useState({ allowed: null, loading: true });
+
+  useEffect(() => {
+    const checkAccess = async () => {
+      const result = await checkIPAccess();
+      setIpAccess(result);
+    };
+    
+    checkAccess();
+  }, []);
+
+  // IP kontrolü yükleniyor
+  if (ipAccess.loading) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Container maxWidth="sm" sx={{ mt: 8, textAlign: 'center' }}>
+          <Typography variant="h6">Erişim kontrol ediliyor...</Typography>
+        </Container>
+      </ThemeProvider>
+    );
+  }
+
+  // IP erişimi reddedildi
+  if (!ipAccess.allowed) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Container maxWidth="sm" sx={{ mt: 8 }}>
+          <Alert severity="error" sx={{ mb: 2 }}>
+            <Typography variant="h6">Erişim Engellendi</Typography>
+            <Typography variant="body2">
+              IP adresiniz ({ipAccess.ip}) bu sisteme erişim için yetkili değil.
+            </Typography>
+          </Alert>
+        </Container>
+      </ThemeProvider>
+    );
+  }
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />

@@ -36,8 +36,8 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Security middleware - Production için aktif
-app.use(ipWhitelist);
+// Security middleware - Devre dışı
+// app.use(ipWhitelist);
 // app.use(domainCheck);
 // app.use(apiKeyAuth);
 

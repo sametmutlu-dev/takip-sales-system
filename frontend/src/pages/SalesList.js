@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Card,
@@ -74,11 +74,7 @@ const SalesList = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedSale, setSelectedSale] = useState(null);
 
-  useEffect(() => {
-    fetchSales();
-  }, [pagination.page, pagination.pageSize]);
-
-  const fetchSales = async (customFilters = {}) => {
+  const fetchSales = useCallback(async (customFilters = {}) => {
     try {
       setLoading(true);
       setError(null);
@@ -109,7 +105,11 @@ const SalesList = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [pagination.page, pagination.pageSize, filters]);
+
+  useEffect(() => {
+    fetchSales();
+  }, [pagination.page, pagination.pageSize, fetchSales]);
 
   const handleFilterChange = (field, value) => {
     setFilters(prev => ({

@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // API base URL - Production için environment variable kullan
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? process.env.REACT_APP_API_URL || 'https://your-backend-app.vercel.app/api'
+  ? process.env.REACT_APP_API_URL || 'https://takip-backend.vercel.app/api'
   : 'http://localhost:3001/api';
 
 // API Key - Production için environment variable kullan

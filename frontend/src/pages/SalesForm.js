@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Card,
@@ -87,13 +87,7 @@ const SalesForm = () => {
     'Özet'
   ];
 
-  useEffect(() => {
-    if (isEdit) {
-      fetchSaleData();
-    }
-  }, [id, isEdit]);
-
-  const fetchSaleData = async () => {
+  const fetchSaleData = useCallback(async () => {
     try {
       setLoading(true);
       const response = await salesAPI.getById(id);
@@ -104,7 +98,13 @@ const SalesForm = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (isEdit) {
+      fetchSaleData();
+    }
+  }, [id, isEdit, fetchSaleData]);
 
   const handleInputChange = (section, field, value) => {
     setFormData(prev => ({
